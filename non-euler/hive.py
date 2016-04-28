@@ -126,10 +126,10 @@ class Game(object):
     def valid_moves(self, player):
         return [(token,self.valid_destinations(token)) for token in self.tokens[player]]
 
-    def pretty_print_moves(self,player):
-        return '\n'.join(str(token) + ' -> ' + ", ".join(str(dest) for dest in destinations) for token, destinations in self.valid_moves(player))
+    def pretty_print_moves(self,moves):
+        return '\n'.join(str(token) + ' -> ' + ", ".join(str(dest) for dest in destinations) for token, destinations in moves)
 
 g = Game()
 
-print g.pretty_print_moves(Game.white)
+print g.pretty_print_moves(g.valid_moves(Game.white))
 
