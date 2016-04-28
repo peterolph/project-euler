@@ -1,3 +1,5 @@
+import random
+
 class Token(object):
 
     bee = 'bee'
@@ -7,10 +9,11 @@ class Token(object):
     spider = 'spider'
     kinds = (bee, ant, grasshopper, beetle, spider)
 
-    def __init__(self,player,kind,loc=None):
+    def __init__(self,player,kind,loc=None, trapped = False):
         self.player = player
         self.kind = kind
         self.loc = loc
+        self.trapped = trapped
 
     def __str__(self):
         return "%s %s %s" % (self.player, self.kind, self.loc and self.loc or '(in hand)')
@@ -46,7 +49,7 @@ class Board(object):
         return self.neighbours(loc) & self.occupied()
 
     def __str__(self):
-        return str(self.tokens)
+        return 'Board state: ' + str(self.tokens)
 
     def get_tokens(self, player=None):
         if player:
@@ -76,6 +79,7 @@ class Game(object):
             self.board.remove(token)
         token.loc = destination
         self.board.add(token)
+        print self.board
 
     def placed_tokens(self, player):
         return [token for token in self.tokens[player] if token.is_on_board()]
@@ -87,7 +91,10 @@ class Game(object):
         return self.merge(self.board.neighbours(token.loc) for token in self.board.get_tokens(player))
 
     def opponent(self,player):
-        return {'white':'black','black':'white'}[player]
+        if player == Game.white:
+            return Game.black
+        else:
+            return Game.white
 
     def valid_destinations(self,token):
         if token.is_in_hand():
@@ -109,27 +116,33 @@ class Game(object):
 
         else:
             if self.bee[token.player].is_in_hand():
+                # Cannot move tokens if the bee has not been played
                 return set()
-            elif self.board.token_is_trapped(token):
+                
+            elif token.trapped:
                 return set()
             elif token.kind == Token.bee:
-                pass
+                return set()
             elif token.kind == Token.ant:
-                pass
+                return set()
             elif token.kind == Token.grasshopper:
-                pass
+                return set()
             elif token.kind == Token.beetle:
-                pass
+                return set()
             elif token.kind == Token.spider:
-                pass
+                return set()
 
     def valid_moves(self, player):
         return [(token,self.valid_destinations(token)) for token in self.tokens[player]]
+
+    def random_move(self, player):
+        token, moves = random.choice(filter(lambda (token,moves): moves, self.valid_moves(player)))
+        move = random.choice(tuple(moves))
+        return (token, move)
 
     def pretty_print_moves(self,moves):
         return '\n'.join(str(token) + ' -> ' + ", ".join(str(dest) for dest in destinations) for token, destinations in moves)
 
 g = Game()
 
-print g.pretty_print_moves(g.valid_moves(Game.white))
-
+print g.pretty_print_moves(g.valid_moves(Game.black))
