@@ -13,7 +13,7 @@ class Token(object):
         self.loc = loc
 
     def __str__(self):
-        return "%s %s %s" % (self.player, self.kind, self.loc)
+        return "%s %s %s" % (self.player, self.kind, self.loc and self.loc or '(in hand)')
 
     def __repr__(self):
         return 'hive_token(%s, %s, %s)' % (self.player, self.kind, self.loc)
@@ -124,9 +124,12 @@ class Game(object):
                 pass
 
     def valid_moves(self, player):
-        return self.merge(self.valid_destinations(token) for token in self.tokens[player])
+        return [(token,self.valid_destinations(token)) for token in self.tokens[player]]
+
+    def pretty_print_moves(self,player):
+        return '\n'.join(str(token) + ' -> ' + ", ".join(str(dest) for dest in destinations) for token, destinations in self.valid_moves(player))
 
 g = Game()
 
-print g.valid_moves(Game.white)
+print g.pretty_print_moves(Game.white)
 
