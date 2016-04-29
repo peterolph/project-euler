@@ -9,11 +9,10 @@ class Token(object):
     spider = 'spider'
     kinds = (bee, ant, grasshopper, beetle, spider)
 
-    def __init__(self,player,kind,loc=None, trapped = False):
+    def __init__(self,player,kind,loc=None):
         self.player = player
         self.kind = kind
         self.loc = loc
-        self.trapped = trapped
 
     def __str__(self):
         return "%s %s %s" % (self.player, self.kind, self.loc and self.loc or '(in hand)')
@@ -37,6 +36,15 @@ class Board(object):
     def remove(self,token):
         del self.tokens[token.loc]
 
+    def trapped(self,token):
+        openset = [self.neighbour_tokens(token.loc)[0]]
+        closedset = [token]
+        while openset:
+            current = openset.pop()
+            closedset.append(current)
+            openset.extend([neighbour for neighbour in self.neighbour_tokens(current.loc) if neighbour not in closedset])
+        return len(closedset) < len(self.tokens)
+
     def occupied(self):
         return set(self.tokens.keys())
 
@@ -44,6 +52,9 @@ class Board(object):
         x,y = loc
         offsets = ((1,0), (0,1), (-1,1), (-1,0), (0,-1), (1,-1))
         return set((x+ox,y+oy) for ox,oy in offsets)
+
+    def neighbour_tokens(self,loc):
+        return [self.tokens[neighbour] for neighbour in self.neighbours(loc) if neighbour in self.tokens]
 
     def neighbours_occupied(self,loc):
         return self.neighbours(loc) & self.occupied()
@@ -118,9 +129,11 @@ class Game(object):
             if self.bee[token.player].is_in_hand():
                 # Cannot move tokens if the bee has not been played
                 return set()
-                
-            elif token.trapped:
+
+            elif self.board.trapped(token):
+                # Cannot move a token if it would split the hive
                 return set()
+
             elif token.kind == Token.bee:
                 return set()
             elif token.kind == Token.ant:
@@ -145,4 +158,8 @@ class Game(object):
 
 g = Game()
 
-print g.pretty_print_moves(g.valid_moves(Game.black))
+g.move(g.bee[Game.white],(0,0))
+g.move(g.bee[Game.black],(0,1))
+g.move(*g.random_move(Game.white))
+
+print g.pretty_print_moves(g.valid_moves(Game.white))
