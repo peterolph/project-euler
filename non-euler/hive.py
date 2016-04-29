@@ -1,5 +1,33 @@
 import random
 
+class Loc(object):
+    def __init__(self,i,j,k):
+        self.i = i
+        self.j = j
+        self.k = k
+
+    def __getitem__(self,index):
+        if index == 0:
+            return self.i
+        elif index == 1:
+            return self.j
+        elif index == 2:
+            return self.k
+        else:
+            raise KeyError
+
+    def __add__(self,other):
+        return Loc(*[self[i] + other[i] for i in range(3)])
+
+    def __sub__(self,other):
+        return Loc(*[self[i] - other[i] for i in range(3)])
+
+    def __str__(self):
+        return 'Loc(%s,%s,%s)' % (self.i, self.j, self.k)
+
+    def __repr__(self):
+        return str(self)
+
 class Token(object):
 
     bee = 'bee'
@@ -156,10 +184,11 @@ class Game(object):
     def pretty_print_moves(self,moves):
         return '\n'.join(str(token) + ' -> ' + ", ".join(str(dest) for dest in destinations) for token, destinations in moves)
 
-g = Game()
+if __name__ == "__main__":
+    g = Game()
 
-g.move(g.bee[Game.white],(0,0))
-g.move(g.bee[Game.black],(0,1))
-g.move(*g.random_move(Game.white))
+    g.move(g.bee[Game.white],(0,0))
+    g.move(g.bee[Game.black],(0,1))
+    g.move(*g.random_move(Game.white))
 
-print g.pretty_print_moves(g.valid_moves(Game.white))
+    print g.pretty_print_moves(g.valid_moves(Game.white))
