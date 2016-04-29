@@ -105,6 +105,8 @@ class Game(object):
     black = 'black'
     players = (white, black)
 
+    draw = 'draw'
+
     starting_hand = tuple([Token.bee] + [Token.grasshopper]*3 + [Token.ant]*3 + [Token.beetle]*2 + [Token.spider]*2)
 
     def __init__(self):
@@ -119,6 +121,19 @@ class Game(object):
         token.loc = destination
         self.board.add(token)
         print self.board
+
+    def winner(self):
+        winners = []
+        for player in self.players:
+            bee = self.bee[player]
+            if bee.is_on_board() and len(self.board.neighbour_tokens(bee)) == 6:
+                winners.append(self.opponent[player])
+        if len(winners) == 0:
+            return None
+        elif len(winners) == 1:
+            return winners[0]
+        else:
+            return Game.draw
 
     def placed_tokens(self, player):
         return [token for token in self.tokens[player] if token.is_on_board()]
