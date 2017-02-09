@@ -1,20 +1,46 @@
 import random
 
+def merge_sets(iterable_of_sets):
+    return reduce(lambda a,b: a|b, iterable_of_sets, set())
+
+class Hex(object):
+
+    def __init__(self, x=0, y=0, z=0):
+        self.x = x
+        self.y = y
+        self.z = z
+
+    def neighbours(self):
+        offsets = ((1,0), (0,1), (-1,1), (-1,0), (0,-1), (1,-1))
+        return set(Hex(self.x+ox, self.y+oy) for ox,oy in offsets)
+
+    def __eq__(self, other):
+        return self.x == other.x and self.y == other.y and self.z == other.z
+
+    def __hash__(self):
+        return hash((self.x, self.y, self.z))
+
+    def __repr__(self):
+        if self.z != 0:
+            return 'h(%d,%d,%d)' % (self.x, self.y, self.z)
+        else:
+            return 'h(%d,%d)' % (self.x, self.y)
+
 class Token(object):
 
-    def __init__(self,player,kind,loc=None):
+    def __init__(self,player,kind,hex=None):
         self.player = player
         self.kind = kind
-        self.loc = loc
+        self.hex = hex
 
     def is_in_hand(self):
-        return self.loc is None
+        return self.hex is None
 
     def is_on_board(self):
-        return self.loc is not None
+        return self.hex is not None
 
     def __str__(self):
-        return "%s %s %s" % (self.player, self.kind, self.loc and self.loc or '(in hand)')
+        return "%s %s %s" % (self.player, self.kind, self.hex and self.hex or '(in hand)')
 
     def __repr__(self):
         return str(self)
@@ -24,46 +50,41 @@ class Board(object):
     def __init__(self):
         self.tokens = {}
 
-    def add(self,token):
-        self.tokens[token.loc] = token
+    def add(self,token, destination):
+        self.tokens[destination] = token
 
     def remove(self,token):
-        del self.tokens[token.loc]
+        del self.tokens[token.hex]
 
     def trapped(self,token):
-        openset = [self.neighbour_tokens(token.loc)[0]]
+        # Would removing this token split the hive?
+        openset = [self.neighbour_tokens(token.hex)[0]]
         closedset = [token]
         while openset:
             current = openset.pop()
             closedset.append(current)
-            openset.extend([neighbour for neighbour in self.neighbour_tokens(current.loc) if neighbour not in closedset])
+            openset.extend([neighbour for neighbour in self.neighbour_tokens(current.hex) if neighbour not in closedset])
         return len(closedset) < len(self.tokens)
 
     def occupied_hexes(self):
+        # any hex occupied on the board
         return set(self.tokens.keys())
 
-    def neighbour_hexes(self,loc):
-        x,y = loc
-        offsets = ((1,0), (0,1), (-1,1), (-1,0), (0,-1), (1,-1))
-        return set((x+ox,y+oy) for ox,oy in offsets)
+    def occupied_neighbour_hexes(self,hex):
+        return hex.neighbours() & self.occupied_hexes()
 
-    def occupied_neighbour_hexes(self,loc):
-        return self.neighbour_hexes(loc) & self.occupied_hexes()
+    def crawlable_hexes(self,hex):
+        # hexes reachable in one crawl move
+        return merge_sets(neighbour.neighbours() for neighbour in self.occupied_neighbour_hexes(hex)) & hex.neighbours() - self.occupied_hexes()
 
-    def neighbour_tokens(self,loc):
-        return [self.tokens[neighbour] for neighbour in self.occupied_neighbour_hexes(loc)]
+    def neighbour_tokens(self,hex):
+        return [self.tokens[neighbour] for neighbour in self.occupied_neighbour_hexes(hex)]
+
+    def count_tokens(self):
+        return len(self.tokens)
 
     def __str__(self):
-        return 'Board state: ' + str(self.tokens)
-
-    def get_tokens(self, player=None):
-        if player:
-            return set(token for token in self.tokens.values() if token.player == player)
-        else:
-            return set(self.tokens.values())
-
-    def count_tokens(self, player=None):
-        return len(self.get_tokens(player))
+        return 'Board state: ' + str(self.tokens.values())
 
 class Player(object):
 
@@ -71,6 +92,10 @@ class Player(object):
         self.colour = colour
         self.tokens = [Token(self,kind) for kind in starting_hand]
         self.bee = self.tokens[0]
+        self.human = True
+
+    def tokens_on_board(self):
+        return [token for token in self.tokens if token.is_on_board()]
 
     def __repr__(self):
         return self.colour
@@ -92,30 +117,30 @@ class Game(object):
     def __init__(self):
         self.board = Board()
         self.players = {colour: Player(colour, Game.starting_hand) for colour in Game.colours}
+        self.active = self.players[Game.white]
         self.turn = 0
 
     def move(self,token,destination):
         if token.is_on_board():
             self.board.remove(token)
-        token.loc = destination
-        self.board.add(token)
-        print self.board
+        self.board.add(token, destination)
+        token.hex = destination
+        self.active = self.opponent(self.active)
+        self.turn += 1
 
     def winner(self):
         winners = []
         for player in self.players:
-            if player.bee.is_on_board() and len(self.board.neighbour_tokens(player.bee)) == 6:
+            if player.bee.is_on_board() and len(self.board.neighbour_tokens(player.bee.hex)) == 6:
                 winners.append(self.opponent[player])
         return winners
 
-    def merge(self, iterable_of_sets):
-        return reduce(lambda a,b: a|b, iterable_of_sets, set())
 
     def player_neighbours(self, player):
-        return self.merge(self.board.neighbour_hexes(token.loc) for token in self.board.get_tokens(player))
+        return merge_sets(token.hex.neighbours() for token in player.tokens_on_board())
 
     def opponent(self,player):
-        if player.colour == Game.white:
+        if player == self.players[Game.white]:
             return self.players[Game.black]
         else:
             return self.players[Game.white]
@@ -127,13 +152,13 @@ class Game(object):
         if token.is_in_hand():
             if self.board.count_tokens() == 0:
                 # First token: only one valid location
-                return set([(0,0)])
+                return set([Hex(0,0)])
 
             elif self.board.count_tokens() == 1:
                 # Second token: is allowed to touch opponent token
-                return self.board.neighbours((0,0))
+                return Hex(0,0).neighbours()
 
-            elif self.board.count_tokens(player) == 3 and player.bee.is_in_hand() and token.kind != Game.bee:
+            elif len(player.tokens_on_board()) == 3 and player.bee.is_in_hand() and token.kind != Game.bee:
                 # If three tokens have been placed but not the bee, must place the bee
                 return set()
 
@@ -151,7 +176,7 @@ class Game(object):
                 return set()
 
             elif token.kind == Game.bee:
-                return set()
+                return self.board.crawlable_hexes(token.hex)
             elif token.kind == Game.ant:
                 return set()
             elif token.kind == Game.hopper:
@@ -161,22 +186,42 @@ class Game(object):
             elif token.kind == Game.spider:
                 return set()
 
-    def valid_moves(self, player):
-        return [(token,self.valid_destinations(token)) for token in player.tokens]
+    def valid_moves(self, player=None):
+        if player is None:
+            player = self.active
+        return [(token, destination) for token in player.tokens for destination in self.valid_destinations(token)]
 
-    def random_move(self, player):
-        token, moves = random.choice(filter(lambda (token,moves): moves, self.valid_moves(player)))
-        move = random.choice(tuple(moves))
-        return (token, move)
+    def random_move(self, player=None):
+        return random.choice(self.valid_moves(player))
 
-    def pretty_print_moves(self,moves):
-        return '\n'.join(str(token) + ' -> ' + ", ".join(str(dest) for dest in destinations) for token, destinations in moves)
+    def pretty_print_moves(self,player=None):
+        coalesce = {}
+        moves = self.valid_moves(player)
+        for token, destination in moves:
+            if token not in coalesce:
+                coalesce[token] = []
+            coalesce[token].append(destination)
+        hand_tokens = []
+        hand_placements = []
+        lines = []
+        for token, destinations in coalesce.items():
+            if token.is_in_hand():
+                hand_tokens.append(token.kind)
+                hand_placements = destinations
+            else:
+                lines.append(str(token) + ' -> ' + str(destinations))
+        return ("-----\n" +
+                "it is %s's move\n" % moves[0][0].player.colour +
+                "hand: %s\n" % str(hand_tokens) + 
+                "place: %s\n" % str(hand_placements) + 
+                "\n".join(lines))
 
 if __name__ == "__main__":
     g = Game()
 
-        g.move(g.players[Game.white].bee, (0,0))
-        g.move(g.players[Game.black].bee, (0,1))
-        g.move(*g.random_move(g.players[Game.white]))
+    g.move(g.players[Game.white].bee, Hex(0,0))
+    g.move(g.players[Game.black].bee, Hex(0,1))
+    g.move(*g.random_move())
 
-        print g.pretty_print_moves(g.valid_moves(g.players[Game.white]))
+    print g.board
+    print g.pretty_print_moves()
