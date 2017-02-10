@@ -59,23 +59,36 @@ class Board(object):
         rotated = hexes.rotate(offset,dir)
         target = hexes.add(pivot,rotated)
         blocker = hexes.add(hex,rotated)
-        if (pivot in self.tokens and 
-            target not in self.tokens and 
+        if (pivot in self.tokens and
+            target not in self.tokens and
             blocker not in self.tokens):
             return target
         else:
             raise InvalidMove
 
+    def all_crawl_moves(self,hex,dir):
+        moveset = set()
+        for neighbour in self.occupied_neighbour_hexes(hex):
+            try:
+                moveset.add(self.crawl_move(hex,neighbour,dir))
+            except InvalidMove:
+                pass
+        return moveset
+
     def bee_moves(self,hex):
         # hexes reachable in one crawl move
-        retval = set()
-        for neighbour in self.occupied_neighbour_hexes(hex):
-            for dir in ('left','right'):
-                try:
-                    retval.add(self.crawl_move(hex,neighbour,dir))
-                except InvalidMove:
-                    pass
-        return retval
+        return merge_sets([self.all_crawl_moves(hex,'left'), self.all_crawl_moves(hex,'right')])
+
+    def ant_moves(self,hex):
+        moveset = self.all_crawl_moves(hex,'right')
+        openset = self.all_crawl_moves(hex,'left')
+        while openset:
+            current = openset.pop()
+            moveset.add(current)
+            for move in self.all_crawl_moves(current,'left'):
+                if move not in moveset:
+                    openset.add(move)
+        return moveset
 
     def neighbour_tokens(self,hex):
         return [self.tokens[neighbour] for neighbour in self.occupied_neighbour_hexes(hex)]
@@ -178,7 +191,7 @@ class Game(object):
             elif token.kind == Game.bee:
                 return self.board.bee_moves(token.hex)
             elif token.kind == Game.ant:
-                return set()
+                return self.board.ant_moves(token.hex)
             elif token.kind == Game.hopper:
                 return set()
             elif token.kind == Game.beetle:
@@ -221,6 +234,7 @@ if __name__ == "__main__":
 
     g.move(g.players[Game.white].bee, (0,0))
     g.move(g.players[Game.black].bee, (0,1))
+    g.move(*g.random_move())
     g.move(*g.random_move())
 
     print g.board
