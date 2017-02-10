@@ -100,6 +100,13 @@ class Board(object):
             moveset.add(target)
         return moveset
 
+    def spider_moves(self,hex):
+        left_moves = right_moves = set([hex])
+        for _ in xrange(3):
+            left_moves = merge_sets(self.all_crawl_moves(move,'left') for move in left_moves)
+            right_moves = merge_sets(self.all_crawl_moves(move,'right') for move in right_moves)
+        return left_moves | right_moves
+
     def neighbour_tokens(self,hex):
         return [self.tokens[neighbour] for neighbour in self.occupied_neighbour_hexes(hex)]
 
@@ -207,7 +214,7 @@ class Game(object):
             elif token.kind == Game.beetle:
                 return set()
             elif token.kind == Game.spider:
-                return set()
+                return self.board.spider_moves(token.hex)
 
     def valid_moves(self, player=None):
         if player is None:
