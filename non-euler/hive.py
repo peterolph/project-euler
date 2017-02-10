@@ -39,13 +39,17 @@ class Board(object):
 
     def trapped(self,token):
         # Would removing this token split the hive?
-        openset = [self.neighbour_tokens(token.hex)[0]]
-        closedset = [token]
-        while openset:
-            current = openset.pop()
-            closedset.append(current)
-            openset.extend([neighbour for neighbour in self.neighbour_tokens(current.hex) if neighbour not in closedset])
-        return len(closedset) < len(self.tokens)
+        neighbours = self.occupied_neighbour_hexes(token.hex)
+        if len(neighbours) == 0:
+            return False
+        else:
+            openset = [neighbours.pop()]
+            closedset = [token.hex]
+            while openset:
+                current = openset.pop()
+                closedset.append(current)
+                openset.extend([neighbour for neighbour in self.occupied_neighbour_hexes(current) if neighbour not in closedset])
+            return len(closedset) < len(self.tokens)
 
     def occupied_hexes(self):
         # any hex occupied on the board
@@ -66,13 +70,14 @@ class Board(object):
         else:
             raise InvalidMove
 
-    def all_crawl_moves(self,hex,dir):
+    def all_crawl_moves(self,hex,dir,disallowed=None):
         moveset = set()
         for neighbour in self.occupied_neighbour_hexes(hex):
-            try:
-                moveset.add(self.crawl_move(hex,neighbour,dir))
-            except InvalidMove:
-                pass
+            if neighbour != disallowed:
+                try:
+                    moveset.add(self.crawl_move(hex,neighbour,dir))
+                except InvalidMove:
+                    pass
         return moveset
 
     def bee_moves(self,hex):
@@ -85,7 +90,7 @@ class Board(object):
         while openset:
             current = openset.pop()
             moveset.add(current)
-            for move in self.all_crawl_moves(current,'left'):
+            for move in self.all_crawl_moves(current,'left',hex):
                 if move not in moveset:
                     openset.add(move)
         return moveset
@@ -155,12 +160,17 @@ class Game(object):
         self.turn = 0
 
     def move(self,token,destination):
+        #print str(token) + ' --> ' + str(destination)
         if token.is_on_board():
             self.board.remove(token)
         self.board.add(token, destination)
         token.hex = destination
         self.active = self.opponent(self.active)
         self.turn += 1
+        if len(self.board.occupied_neighbour_hexes(token.hex)) == 0 and len(self.board.tokens) > 1:
+            print self.board
+            print token, destination
+            raise InvalidMove
 
     def winner(self):
         winners = []
@@ -230,7 +240,6 @@ class Game(object):
 
     def random_move(self, player=None):
         move = random.choice(self.valid_moves(player))
-        print move
         self.move(*move)
 
     def pretty_print_moves(self,player=None):
@@ -256,12 +265,16 @@ class Game(object):
                 "\n".join(lines))
 
 if __name__ == "__main__":
-    game = Game()
-
-    game.move(game.players[Game.white].bee, (0,0))
-    game.move(game.players[Game.black].bee, (0,1))
-    game.random_move()
-    game.random_move()
-
-    print game.board
-    print game.pretty_print_moves()
+    count = 0
+    fail = 0
+    for _ in xrange(1000):
+        count += 1
+        try:
+            game = Game()
+            #print '#############################'
+            for i in range(23):
+                game.random_move()
+        except IndexError:
+            fail += 1
+    
+    print fail, count
