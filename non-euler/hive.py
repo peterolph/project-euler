@@ -267,6 +267,13 @@ class Game(object):
         move = random.choice(moves)
         self.move(*move)
 
+    def random_game(self):
+        while True:
+            try:
+                self.random_move()
+            except GameOver:
+                return
+
     def pretty_print_moves(self,player=None):
         if player is None:
             player = self.active
@@ -297,19 +304,9 @@ class Game(object):
 
 if __name__ == "__main__":
     
-    lengths = []
-    winners = {}
-    for games in range(10):
-        print games
-        game = Game()
-        try:
-            for i in range(10000):
-                game.random_move()
-        except GameOver:
-            lengths.append(i)
-            winner_tuple = tuple(winner.colour for winner in game.winner())
-            if winner_tuple not in winners:
-                winners[winner_tuple] = 0
-            winners[winner_tuple] += 1
-    print lengths
-    print winners
+    game = Game()
+    move_count = game.random_game()
+
+    print "%s wins after %d moves." % (game.winner(), game.turn)
+    game.board.pretty_print()
+    print game.pretty_print_moves()
