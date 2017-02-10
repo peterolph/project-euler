@@ -46,12 +46,12 @@ class Board(object):
         if len(neighbours) == 0:
             return False
         else:
-            openset = [neighbours.pop()]
-            closedset = [token.hex]
+            openset = set([neighbours.pop()])
+            closedset = set([token.hex])
             while openset:
                 current = openset.pop()
-                closedset.append(current)
-                openset.extend([neighbour for neighbour in self.occupied_neighbour_hexes(current) if neighbour not in closedset])
+                closedset.add(current)
+                openset.update([neighbour for neighbour in self.occupied_neighbour_hexes(current) if neighbour not in closedset])
             return len(closedset) < len(self.tokens)
 
     def occupied_hexes(self):
@@ -71,7 +71,7 @@ class Board(object):
             blocker not in self.tokens):
             return target
         else:
-            raise InvalidMove
+            raise InvalidMove, "This crawl move is blocked."
 
     def all_crawl_moves(self,hex,dir,disallowed=None):
         moveset = set()
@@ -125,7 +125,7 @@ class Board(object):
     def count_tokens(self):
         return len(self.tokens)
 
-    def __str__(self):
+    def pretty_print(self):
         minx = min([token.hex[0] for token in self.tokens.values()])
         maxx = max([token.hex[0] for token in self.tokens.values()])
         miny = min([token.hex[0]+2*token.hex[1] for token in self.tokens.values()])
@@ -156,6 +156,9 @@ class Player(object):
     def __repr__(self):
         return self.colour
 
+class GameOver(Exception):
+    pass
+
 class Game(object):
 
     white = 'white'
@@ -177,7 +180,6 @@ class Game(object):
         self.turn = 0
 
     def move(self,token,destination):
-        #print str(token) + ' --> ' + str(destination)
         if token.is_on_board():
             self.board.remove(token)
         self.board.add(token, destination)
@@ -187,13 +189,15 @@ class Game(object):
         if len(self.board.occupied_neighbour_hexes(token.hex)) == 0 and len(self.board.tokens) > 1:
             print self.board
             print token, destination
-            raise InvalidMove
+            raise InvalidMove, "This move would split the hive."
+        if self.winner():
+            raise GameOver
 
     def winner(self):
         winners = []
-        for player in self.players:
+        for player in self.players.values():
             if player.bee.is_on_board() and len(self.board.neighbour_tokens(player.bee.hex)) == 6:
-                winners.append(self.opponent[player])
+                winners.append(self.opponent(player))
         return winners
 
 
@@ -254,12 +258,18 @@ class Game(object):
         if player is None:
             player = self.active
         return [(token, destination) for token in player.tokens for destination in self.valid_destinations(token)]
+        
 
     def random_move(self, player=None):
-        move = random.choice(self.valid_moves(player))
+        moves = self.valid_moves(player)
+        if len(moves) == 0:
+            raise GameOver
+        move = random.choice(moves)
         self.move(*move)
 
     def pretty_print_moves(self,player=None):
+        if player is None:
+            player = self.active
         coalesce = {}
         moves = self.valid_moves(player)
         for token, destination in moves:
@@ -275,24 +285,31 @@ class Game(object):
                 hand_placements = destinations
             else:
                 lines.append(str(token) + ' -> ' + str(destinations))
-        return ("-----\n" +
-                "it is %s's move\n" % moves[0][0].player.colour +
-                "hand: %s\n" % str(hand_tokens) + 
-                "place: %s\n" % str(hand_placements) + 
-                "\n".join(lines))
+        if len(hand_tokens) > 0:
+            hand_string = "hand: %s\nplace: %s\n" % (str(hand_tokens), str(hand_placements))
+        else:
+            hand_string = "No tokens in hand.\n"
+        if len(lines) > 0:
+            move_string = "\n".join(lines)
+        else:
+            move_string = "No moves available.\n"
+        return ("-----\nIt is %s's move\n" % player.colour + hand_string + move_string)
 
 if __name__ == "__main__":
-    count = 0
-    fail = 0
-    for _ in xrange(1000):
-        count += 1
+    
+    lengths = []
+    winners = {}
+    for games in range(10):
+        print games
+        game = Game()
         try:
-            game = Game()
-            #print '#############################'
-            for i in range(23):
+            for i in range(10000):
                 game.random_move()
-        except IndexError:
-            print count
-            print game.board
-            print game.board.count_tokens()
-            raise
+        except GameOver:
+            lengths.append(i)
+            winner_tuple = tuple(winner.colour for winner in game.winner())
+            if winner_tuple not in winners:
+                winners[winner_tuple] = 0
+            winners[winner_tuple] += 1
+    print lengths
+    print winners
