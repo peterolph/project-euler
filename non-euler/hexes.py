@@ -1,6 +1,7 @@
 
 # all the distance 1 offsets around a hexagon
 # in clockwise order starting from the top
+centre = (0,0)
 offsets = ((0,-1), (1,-1), (1,0), (0,1), (-1,1), (-1,0))
 
 def add(hex1,hex2):
@@ -24,7 +25,7 @@ def rotate(offset,dir):
         raise ValueError
 
 def opposite(offset):
-    return opposites[offset]    
+    return opposites[offset]
 
 def neighbours(hex):
-    return set((hex[0]+offset[0], hex[1]+offset[1]) for offset in offsets)
+    return set(add(hex,offset) for offset in offsets)

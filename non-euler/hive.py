@@ -107,6 +107,10 @@ class Board(object):
             right_moves = merge_sets(self.all_crawl_moves(move,'right') for move in right_moves)
         return left_moves | right_moves
 
+    def beetle_moves(self,hex):
+        moveset = set()
+        return merge_sets([moveset,self.bee_moves(hex)])
+
     def neighbour_tokens(self,hex):
         return [self.tokens[neighbour] for neighbour in self.occupied_neighbour_hexes(hex)]
 
@@ -180,31 +184,34 @@ class Game(object):
         opponent = self.opponent(player)
 
         if token.is_in_hand():
+
+            # First token: only one valid location
             if self.board.count_tokens() == 0:
-                # First token: only one valid location
-                return set([(0,0)])
+                return set([hexes.centre])
 
+            # Second token: is allowed to touch opponent token
             elif self.board.count_tokens() == 1:
-                # Second token: is allowed to touch opponent token
-                return hexes.neighbours((0,0))
+                return hexes.neighbours(hexes.centre)
 
+            # If three tokens have been placed but not the bee, must place the bee
             elif len(player.tokens_on_board()) == 3 and player.bee.is_in_hand() and token.kind != Game.bee:
-                # If three tokens have been placed but not the bee, must place the bee
                 return set()
 
+            # Normal situation: token can be placed on any free space that touches own token but not opponent's
             else:
-                # Normal situation: token can be placed on any free space that touches own token but not opponent's
                 return self.player_neighbours(player) - self.player_neighbours(opponent) - self.board.occupied_hexes()
 
         else:
+
+            # Cannot move tokens if the bee has not been played
             if player.bee.is_in_hand():
-                # Cannot move tokens if the bee has not been played
                 return set()
 
+            # Cannot move a token if it would split the hive
             elif self.board.trapped(token):
-                # Cannot move a token if it would split the hive
                 return set()
 
+            # Normal situation: token can be moved according to its rules
             elif token.kind == Game.bee:
                 return self.board.bee_moves(token.hex)
             elif token.kind == Game.ant:
@@ -212,7 +219,7 @@ class Game(object):
             elif token.kind == Game.hopper:
                 return self.board.hopper_moves(token.hex)
             elif token.kind == Game.beetle:
-                return set()
+                return self.board.beetle_moves(token.hex)
             elif token.kind == Game.spider:
                 return self.board.spider_moves(token.hex)
 
