@@ -1,30 +1,8 @@
 import random
+import hexes
 
 def merge_sets(iterable_of_sets):
     return reduce(lambda a,b: a|b, iterable_of_sets, set())
-
-class Hex(object):
-
-    def __init__(self, x=0, y=0, z=0):
-        self.x = x
-        self.y = y
-        self.z = z
-
-    def neighbours(self):
-        offsets = ((1,0), (0,1), (-1,1), (-1,0), (0,-1), (1,-1))
-        return set(Hex(self.x+ox, self.y+oy) for ox,oy in offsets)
-
-    def __eq__(self, other):
-        return self.x == other.x and self.y == other.y and self.z == other.z
-
-    def __hash__(self):
-        return hash((self.x, self.y, self.z))
-
-    def __repr__(self):
-        if self.z != 0:
-            return 'h(%d,%d,%d)' % (self.x, self.y, self.z)
-        else:
-            return 'h(%d,%d)' % (self.x, self.y)
 
 class Token(object):
 
@@ -44,6 +22,9 @@ class Token(object):
 
     def __repr__(self):
         return str(self)
+
+class InvalidMove(Exception):
+    pass
 
 class Board(object):
 
@@ -71,11 +52,30 @@ class Board(object):
         return set(self.tokens.keys())
 
     def occupied_neighbour_hexes(self,hex):
-        return hex.neighbours() & self.occupied_hexes()
+        return hexes.neighbours(hex) & self.occupied_hexes()
 
-    def crawlable_hexes(self,hex):
+    def crawl_move(self,hex,pivot,dir):
+        offset = hexes.sub(hex,pivot)
+        rotated = hexes.rotate(offset,dir)
+        target = hexes.add(pivot,rotated)
+        blocker = hexes.add(hex,rotated)
+        if (pivot in self.tokens and 
+            target not in self.tokens and 
+            blocker not in self.tokens):
+            return target
+        else:
+            raise InvalidMove
+
+    def bee_moves(self,hex):
         # hexes reachable in one crawl move
-        return merge_sets(neighbour.neighbours() for neighbour in self.occupied_neighbour_hexes(hex)) & hex.neighbours() - self.occupied_hexes()
+        retval = set()
+        for neighbour in self.occupied_neighbour_hexes(hex):
+            for dir in ('left','right'):
+                try:
+                    retval.add(self.crawl_move(hex,neighbour,dir))
+                except InvalidMove:
+                    pass
+        return retval
 
     def neighbour_tokens(self,hex):
         return [self.tokens[neighbour] for neighbour in self.occupied_neighbour_hexes(hex)]
@@ -137,7 +137,7 @@ class Game(object):
 
 
     def player_neighbours(self, player):
-        return merge_sets(token.hex.neighbours() for token in player.tokens_on_board())
+        return merge_sets(hexes.neighbours(token.hex) for token in player.tokens_on_board())
 
     def opponent(self,player):
         if player == self.players[Game.white]:
@@ -152,11 +152,11 @@ class Game(object):
         if token.is_in_hand():
             if self.board.count_tokens() == 0:
                 # First token: only one valid location
-                return set([Hex(0,0)])
+                return set([(0,0)])
 
             elif self.board.count_tokens() == 1:
                 # Second token: is allowed to touch opponent token
-                return Hex(0,0).neighbours()
+                return hexes.neighbours((0,0))
 
             elif len(player.tokens_on_board()) == 3 and player.bee.is_in_hand() and token.kind != Game.bee:
                 # If three tokens have been placed but not the bee, must place the bee
@@ -176,7 +176,7 @@ class Game(object):
                 return set()
 
             elif token.kind == Game.bee:
-                return self.board.crawlable_hexes(token.hex)
+                return self.board.bee_moves(token.hex)
             elif token.kind == Game.ant:
                 return set()
             elif token.kind == Game.hopper:
@@ -219,8 +219,8 @@ class Game(object):
 if __name__ == "__main__":
     g = Game()
 
-    g.move(g.players[Game.white].bee, Hex(0,0))
-    g.move(g.players[Game.black].bee, Hex(0,1))
+    g.move(g.players[Game.white].bee, (0,0))
+    g.move(g.players[Game.black].bee, (0,1))
     g.move(*g.random_move())
 
     print g.board
