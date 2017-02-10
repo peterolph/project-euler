@@ -20,6 +20,9 @@ class Token(object):
     def __str__(self):
         return "%s %s %s" % (self.player, self.kind, self.hex and self.hex or '(in hand)')
 
+    def short_string(self):
+        return "%s%s" % (self.player.colour[0], self.kind == 'bee' and 'B' or self.kind[0])
+
     def __repr__(self):
         return str(self)
 
@@ -123,7 +126,21 @@ class Board(object):
         return len(self.tokens)
 
     def __str__(self):
-        return 'Board state: ' + str(self.tokens.values())
+        minx = min([token.hex[0] for token in self.tokens.values()])
+        maxx = max([token.hex[0] for token in self.tokens.values()])
+        miny = min([token.hex[0]+2*token.hex[1] for token in self.tokens.values()])
+        maxy = max([token.hex[0]+2*token.hex[1] for token in self.tokens.values()])
+        for y in range(miny,maxy+1):
+            for x in range(minx,maxx+1):
+                if (y-x)%2==0:
+                    try:
+                        print self.tokens[(x,(y-x)/2)].short_string(),
+                    except KeyError:
+                        print '--',
+                else:
+                    print '  ',
+                print ' ',
+            print
 
 class Player(object):
 
@@ -275,6 +292,7 @@ if __name__ == "__main__":
             for i in range(23):
                 game.random_move()
         except IndexError:
-            fail += 1
-    
-    print fail, count
+            print count
+            print game.board
+            print game.board.count_tokens()
+            raise
