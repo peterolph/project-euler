@@ -23,8 +23,8 @@ def rotate(offset,dir):
     else:
         raise ValueError
 
-def opposite(hex,pivot):
-    return opposites[sub(hex,pivot)]    
+def opposite(offset):
+    return opposites[offset]    
 
 def neighbours(hex):
     return set((hex[0]+offset[0], hex[1]+offset[1]) for offset in offsets)

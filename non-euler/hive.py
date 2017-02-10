@@ -90,6 +90,16 @@ class Board(object):
                     openset.add(move)
         return moveset
 
+    def hopper_moves(self,hex):
+        moveset = set()
+        for neighbour in self.occupied_neighbour_hexes(hex):
+            hop_direction = hexes.opposite(hexes.sub(hex,neighbour))
+            target = hexes.add(neighbour, hop_direction)
+            while target in self.tokens:
+                target = hexes.add(target, hop_direction)
+            moveset.add(target)
+        return moveset
+
     def neighbour_tokens(self,hex):
         return [self.tokens[neighbour] for neighbour in self.occupied_neighbour_hexes(hex)]
 
@@ -193,7 +203,7 @@ class Game(object):
             elif token.kind == Game.ant:
                 return self.board.ant_moves(token.hex)
             elif token.kind == Game.hopper:
-                return set()
+                return self.board.hopper_moves(token.hex)
             elif token.kind == Game.beetle:
                 return set()
             elif token.kind == Game.spider:
@@ -205,7 +215,9 @@ class Game(object):
         return [(token, destination) for token in player.tokens for destination in self.valid_destinations(token)]
 
     def random_move(self, player=None):
-        return random.choice(self.valid_moves(player))
+        move = random.choice(self.valid_moves(player))
+        print move
+        self.move(*move)
 
     def pretty_print_moves(self,player=None):
         coalesce = {}
@@ -230,12 +242,12 @@ class Game(object):
                 "\n".join(lines))
 
 if __name__ == "__main__":
-    g = Game()
+    game = Game()
 
-    g.move(g.players[Game.white].bee, (0,0))
-    g.move(g.players[Game.black].bee, (0,1))
-    g.move(*g.random_move())
-    g.move(*g.random_move())
+    game.move(game.players[Game.white].bee, (0,0))
+    game.move(game.players[Game.black].bee, (0,1))
+    game.random_move()
+    game.random_move()
 
-    print g.board
-    print g.pretty_print_moves()
+    print game.board
+    print game.pretty_print_moves()
