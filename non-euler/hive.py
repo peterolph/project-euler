@@ -59,7 +59,7 @@ class Board(object):
         return set(self.tokens.keys())
 
     def occupied_neighbour_hexes(self,hex):
-        return hexes.neighbours(hex) & self.occupied_hexes()
+        return set(hex for hex in hexes.neighbours(hex) if hex in self.tokens)
 
     def crawl_move(self,hex,pivot,dir):
         offset = hexes.sub(hex,pivot)
@@ -130,17 +130,19 @@ class Board(object):
         maxx = max([token.hex[0] for token in self.tokens.values()])
         miny = min([token.hex[0]+2*token.hex[1] for token in self.tokens.values()])
         maxy = max([token.hex[0]+2*token.hex[1] for token in self.tokens.values()])
+        retval = ''
         for y in range(miny,maxy+1):
             for x in range(minx,maxx+1):
                 if (y-x)%2==0:
                     try:
-                        print self.tokens[(x,(y-x)/2)].short_string(),
+                        retval += self.tokens[(x,(y-x)/2)].short_string()
                     except KeyError:
-                        print '--',
+                        retval += '--'
                 else:
-                    print '  ',
-                print ' ',
-            print
+                    retval += '  '
+                retval += ' '
+            retval += '\n'
+        return retval
 
 class Player(object):
 
@@ -262,10 +264,11 @@ class Game(object):
 
     def random_move(self, player=None):
         moves = self.valid_moves(player)
-        if len(moves) == 0:
-            raise GameOver
-        move = random.choice(moves)
-        self.move(*move)
+        if len(moves) > 0:
+            move = random.choice(moves)
+            self.move(*move)
+        else:
+            self.active = self.opponent(self.active)
 
     def random_game(self):
         while True:
@@ -305,8 +308,8 @@ class Game(object):
 if __name__ == "__main__":
     
     game = Game()
-    move_count = game.random_game()
+    game.random_game()
 
     print "%s wins after %d moves." % (game.winner(), game.turn)
-    game.board.pretty_print()
+    print game.board.pretty_print()
     print game.pretty_print_moves()
