@@ -35,10 +35,17 @@ class Board(object):
         self.tokens = {}
         self.covered_tokens = {}
         self.cut_hexes = set()
+        self.cache_neighbours = {}
 
     def add(self,token, destination):
         if destination in self.tokens:
             self.covered_tokens[token] = self.tokens[destination]
+        else:
+            for neighbour in hexes.neighbours(destination):
+                if neighbour in self.cache_neighbours:
+                    self.cache_neighbours[neighbour].add(destination)
+
+
         self.tokens[destination] = token
         token.hex = destination
         self.update_cut_hexes()
@@ -47,6 +54,11 @@ class Board(object):
         del self.tokens[token.hex]
         if token in self.covered_tokens:
             self.tokens[token.hex] = self.covered_tokens[token]
+            del self.covered_tokens[token]
+        else:
+            for neighbour in hexes.neighbours(token.hex):
+                if neighbour in self.cache_neighbours:
+                    self.cache_neighbours[neighbour].remove(token.hex)
 
     def update_cut_hexes(self):
 
@@ -89,7 +101,9 @@ class Board(object):
         return set(self.tokens.keys())
 
     def occupied_neighbour_hexes(self,hex):
-        return set(hex for hex in hexes.neighbours(hex) if hex in self.tokens)
+        if hex not in self.cache_neighbours:
+            self.cache_neighbours[hex] = set([neighbour for neighbour in hexes.neighbours(hex) if neighbour in self.tokens])
+        return self.cache_neighbours[hex]
 
     def crawl_move(self,hex,pivot,dir):
         offset = hexes.sub(hex,pivot)
@@ -146,10 +160,10 @@ class Board(object):
         return left_moves | right_moves
 
     def beetle_moves(self,hex):
-        moveset = self.occupied_neighbour_hexes(hex)
-        if self.tokens[hex] not in self.covered_tokens:
-            moveset |= self.bee_moves(hex)
-        return moveset
+        if self.tokens[hex] in self.covered_tokens:
+            return hexes.neighbours(hex)
+        else:
+            return self.occupied_neighbour_hexes(hex) | self.bee_moves(hex)
 
     def neighbour_tokens(self,hex):
         return [self.tokens[neighbour] for neighbour in self.occupied_neighbour_hexes(hex)]
@@ -158,6 +172,8 @@ class Board(object):
         return len(self.tokens)
 
     def pretty_print(self):
+        if self.count_tokens() == 0:
+            return ''
         minx = min([token.hex[0] for token in self.tokens.values()])
         maxx = max([token.hex[0] for token in self.tokens.values()])
         miny = min([token.hex[0]+2*token.hex[1] for token in self.tokens.values()])
