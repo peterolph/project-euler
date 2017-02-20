@@ -33,35 +33,56 @@ class Board(object):
 
     def __init__(self):
         self.tokens = {}
-        self.beetle_climb_tokens = {}
+        self.covered_tokens = {}
+        self.cut_hexes = set()
 
     def add(self,token, destination):
         if destination in self.tokens:
-            self.beetle_climb_tokens[token] = self.tokens[destination]
+            self.covered_tokens[token] = self.tokens[destination]
         self.tokens[destination] = token
         token.hex = destination
+        self.update_cut_hexes()
 
     def remove(self,token):
         del self.tokens[token.hex]
-        if token in self.beetle_climb_tokens:
-            self.tokens[token.hex] = self.beetle_climb_tokens[token]
-        token.hex = None
+        if token in self.covered_tokens:
+            self.tokens[token.hex] = self.covered_tokens[token]
+
+    def update_cut_hexes(self):
+
+        discovery = {hex:0 for hex in self.tokens}
+        low = {hex:1000 for hex in self.tokens}
+        visited = {hex:False for hex in self.tokens}
+        parent = {hex:None for hex in self.tokens}
+
+        cut_hexes = {hex:False for hex in self.tokens}
+
+        def depth_first_search(hex, depth=0):
+            visited[hex] = True
+            discovery[hex] = low[hex] = depth
+            child_count = 0
+            for neighbour in self.occupied_neighbour_hexes(hex):
+                if visited[neighbour] == False:
+                    child_count += 1
+                    parent[neighbour] = hex
+                    depth_first_search(neighbour, depth+1)
+                    low[hex] = min(low[hex], low[neighbour])
+                    if parent[hex] is None and child_count > 1:
+                        cut_hexes[hex] = True
+                    if parent[hex] is not None and low[neighbour] >= discovery[hex]:
+                        cut_hexes[hex] = True
+                elif parent[hex] != neighbour:
+                    low[hex] = min(low[hex], discovery[neighbour])
+
+        depth_first_search(random.choice(self.tokens.keys()))
+        self.cut_hexes = set([hex for hex in cut_hexes if cut_hexes[hex] == True])
 
     def trapped(self,token):
         # Would removing this token split the hive?
-        neighbours = self.occupied_neighbour_hexes(token.hex)
-        if token in self.beetle_climb_tokens.values():
+        if token in self.covered_tokens.values() or token.hex in self.cut_hexes:
             return True
-        elif len(neighbours) == 0:
-            return False
         else:
-            openset = set([neighbours.pop()])
-            closedset = set([token.hex])
-            while openset:
-                current = openset.pop()
-                closedset.add(current)
-                openset.update([neighbour for neighbour in self.occupied_neighbour_hexes(current) if neighbour not in closedset])
-            return len(closedset) < len(self.tokens)
+            return False
 
     def occupied_hexes(self):
         # any hex occupied on the board
@@ -126,7 +147,7 @@ class Board(object):
 
     def beetle_moves(self,hex):
         moveset = self.occupied_neighbour_hexes(hex)
-        if self.tokens[hex] not in self.beetle_climb_tokens:
+        if self.tokens[hex] not in self.covered_tokens:
             moveset |= self.bee_moves(hex)
         return moveset
 
@@ -316,7 +337,6 @@ class Game(object):
         return ("-----\nIt is %s's move\n" % player.colour + hand_string + move_string)
 
 if __name__ == "__main__":
-    
     game = Game()
     game.random_game()
 
