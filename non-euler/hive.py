@@ -33,17 +33,26 @@ class Board(object):
 
     def __init__(self):
         self.tokens = {}
+        self.beetle_climb_tokens = {}
 
     def add(self,token, destination):
+        if destination in self.tokens:
+            self.beetle_climb_tokens[token] = self.tokens[destination]
         self.tokens[destination] = token
+        token.hex = destination
 
     def remove(self,token):
         del self.tokens[token.hex]
+        if token in self.beetle_climb_tokens:
+            self.tokens[token.hex] = self.beetle_climb_tokens[token]
+        token.hex = None
 
     def trapped(self,token):
         # Would removing this token split the hive?
         neighbours = self.occupied_neighbour_hexes(token.hex)
-        if len(neighbours) == 0:
+        if token in self.beetle_climb_tokens.values():
+            return True
+        elif len(neighbours) == 0:
             return False
         else:
             openset = set([neighbours.pop()])
@@ -116,8 +125,10 @@ class Board(object):
         return left_moves | right_moves
 
     def beetle_moves(self,hex):
-        moveset = set()
-        return merge_sets([moveset,self.bee_moves(hex)])
+        moveset = self.occupied_neighbour_hexes(hex)
+        if self.tokens[hex] not in self.beetle_climb_tokens:
+            moveset |= self.bee_moves(hex)
+        return moveset
 
     def neighbour_tokens(self,hex):
         return [self.tokens[neighbour] for neighbour in self.occupied_neighbour_hexes(hex)]
@@ -185,7 +196,6 @@ class Game(object):
         if token.is_on_board():
             self.board.remove(token)
         self.board.add(token, destination)
-        token.hex = destination
         self.active = self.opponent(self.active)
         self.turn += 1
         if len(self.board.occupied_neighbour_hexes(token.hex)) == 0 and len(self.board.tokens) > 1:
