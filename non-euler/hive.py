@@ -8,8 +8,8 @@ def merge_sets(iterable_of_sets):
 
 class Token(object):
 
-    def __init__(self,player,kind,hex=None):
-        self.player = player
+    def __init__(self,colour,kind,hex=None):
+        self.colour = colour
         self.kind = kind
         self.hex = hex
 
@@ -20,10 +20,10 @@ class Token(object):
         return self.hex is not None
 
     def __str__(self):
-        return "%s %s %s" % (self.player, self.kind, self.hex and self.hex or '(in hand)')
+        return "%s %s %s" % (self.colour, self.kind, self.hex and self.hex or '(in hand)')
 
     def short_string(self):
-        return "%s%s" % (self.player.colour[0], self.kind == 'bee' and 'B' or self.kind[0])
+        return "%s%s" % (self.colour[0], self.kind[0])
 
     def __repr__(self):
         return str(self)
@@ -198,7 +198,7 @@ class Player(object):
 
     def __init__(self, colour, starting_hand):
         self.colour = colour
-        self.tokens = [Token(self,kind) for kind in starting_hand]
+        self.tokens = [Token(colour,kind) for kind in starting_hand]
         self.bee = self.tokens[0]
         self.human = True
 
@@ -217,7 +217,7 @@ class Game(object):
     black = 'black'
     colours = (white, black)
 
-    bee = 'bee'
+    bee = 'Bee'
     hopper = 'hopper'
     ant = 'ant'
     beetle = 'beetle'
@@ -262,7 +262,7 @@ class Game(object):
             return self.players[Game.white]
 
     def valid_destinations(self,token):
-        player = token.player
+        player = self.players[token.colour]
         opponent = self.opponent(player)
 
         if token.is_in_hand():
