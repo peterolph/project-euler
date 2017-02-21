@@ -1,8 +1,10 @@
 import random
 import hexes
+import collections
+import functools
 
 def merge_sets(iterable_of_sets):
-    return reduce(lambda a,b: a|b, iterable_of_sets, set())
+    return functools.reduce(lambda a,b: a|b, iterable_of_sets, set())
 
 class Token(object):
 
@@ -86,7 +88,7 @@ class Board(object):
                 elif parent[hex] != neighbour:
                     low[hex] = min(low[hex], discovery[neighbour])
 
-        depth_first_search(random.choice(self.tokens.keys()))
+        depth_first_search(random.choice(list(self.tokens)))
         self.cut_hexes = set([hex for hex in cut_hexes if cut_hexes[hex] == True])
 
     def trapped(self,token):
@@ -115,7 +117,7 @@ class Board(object):
             blocker not in self.tokens):
             return target
         else:
-            raise InvalidMove, "This crawl move is blocked."
+            raise InvalidMove("This crawl move is blocked.")
 
     def all_crawl_moves(self,hex,dir,disallowed=None):
         moveset = set()
@@ -154,7 +156,7 @@ class Board(object):
 
     def spider_moves(self,hex):
         left_moves = right_moves = set([hex])
-        for _ in xrange(3):
+        for _ in range(3):
             left_moves = merge_sets(self.all_crawl_moves(move,'left') for move in left_moves)
             right_moves = merge_sets(self.all_crawl_moves(move,'right') for move in right_moves)
         return left_moves | right_moves
@@ -236,11 +238,11 @@ class Game(object):
         self.active = self.opponent(self.active)
         self.turn += 1
         if len(self.board.occupied_neighbour_hexes(token.hex)) == 0 and len(self.board.tokens) > 1:
-            print self.board
-            print token, destination
-            raise InvalidMove, "This move would split the hive."
+            print(self.board)
+            print(token, destination)
+            raise InvalidMove("This move would split the hive.")
         if self.winner():
-            raise GameOver
+            raise GameOver()
 
     def winner(self):
         winners = []
@@ -356,6 +358,6 @@ if __name__ == "__main__":
     game = Game()
     game.random_game()
 
-    print "%s wins after %d moves." % (game.winner(), game.turn)
-    print game.board.pretty_print()
-    print game.pretty_print_moves()
+    print("%s wins after %d moves." % (game.winner(), game.turn))
+    print(game.board.pretty_print())
+    print(game.pretty_print_moves())

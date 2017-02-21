@@ -12,9 +12,9 @@ def sub(hex1,hex2):
 
 # rotate left is anti-clockwise, right is clockwise
 
-left_rotations  = {offsets[i]:offsets[(i-1)%6] for i in xrange(6)}
-right_rotations = {offsets[i]:offsets[(i+1)%6] for i in xrange(6)}
-opposites       = {offsets[i]:offsets[(i+3)%6] for i in xrange(6)}
+left_rotations  = {offsets[i]:offsets[(i-1)%6] for i in range(6)}
+right_rotations = {offsets[i]:offsets[(i+1)%6] for i in range(6)}
+opposites       = {offsets[i]:offsets[(i+3)%6] for i in range(6)}
 
 def rotate(offset,dir):
     if dir == 'left':
