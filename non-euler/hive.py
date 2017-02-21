@@ -41,7 +41,9 @@ class Board(object):
 
     def add(self,token, destination):
         if destination in self.tokens:
-            self.covered_tokens[token] = self.tokens[destination]
+            if destination not in self.covered_tokens:
+                self.covered_tokens[destination] = []
+            self.covered_tokens[destination].append(self.tokens[destination])
         else:
             for neighbour in hexes.neighbours(destination):
                 if neighbour in self.cache_neighbours:
@@ -54,9 +56,10 @@ class Board(object):
 
     def remove(self,token):
         del self.tokens[token.hex]
-        if token in self.covered_tokens:
-            self.tokens[token.hex] = self.covered_tokens[token]
-            del self.covered_tokens[token]
+        if token.hex in self.covered_tokens:
+            self.tokens[token.hex] = self.covered_tokens[token.hex].pop()
+            if len(self.covered_tokens[token.hex]) == 0:
+                del self.covered_tokens[token.hex]
         else:
             for neighbour in hexes.neighbours(token.hex):
                 if neighbour in self.cache_neighbours:
