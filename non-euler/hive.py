@@ -355,9 +355,22 @@ class Game(object):
         return ("-----\nIt is %s's move\n" % player.colour + hand_string + move_string)
 
 if __name__ == "__main__":
-    game = Game()
-    game.random_game()
+    import sys
 
-    print("%s wins after %d moves." % (game.winner(), game.turn))
-    print(game.board.pretty_print())
-    print(game.pretty_print_moves())
+    if len(sys.argv) <= 1 or sys.argv[1] == 'ten':
+        counts = []
+        for i in range(10):
+            game = Game()
+            game.random_game()
+            counts.append(game.turn)
+            print(i, game.turn)
+        print(counts)
+        print(sum(counts))
+
+    elif sys.argv[1] == 'one':
+        game = Game()
+        game.random_game()
+
+        print("%s wins after %d moves." % (game.winner(), game.turn))
+        print(game.board.pretty_print())
+        print(game.pretty_print_moves())
