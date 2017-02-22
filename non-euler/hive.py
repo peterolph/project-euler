@@ -36,7 +36,7 @@ class Board(object):
     def __init__(self):
         self.tokens = {}
         self.covered_tokens = {}
-        self.cut_hexes = set()
+        self.cache_cut_hexes = set()
         self.cache_neighbours = {}
 
     def add(self,token, destination):
@@ -45,10 +45,7 @@ class Board(object):
                 self.covered_tokens[destination] = []
             self.covered_tokens[destination].append(self.tokens[destination])
         else:
-            for neighbour in hexes.neighbours(destination):
-                if neighbour in self.cache_neighbours:
-                    self.cache_neighbours[neighbour].add(destination)
-
+            self.update_neighbours(add=destination)
 
         self.tokens[destination] = token
         token.hex = destination
@@ -61,12 +58,19 @@ class Board(object):
             if len(self.covered_tokens[token.hex]) == 0:
                 del self.covered_tokens[token.hex]
         else:
-            for neighbour in hexes.neighbours(token.hex):
-                if neighbour in self.cache_neighbours:
-                    self.cache_neighbours[neighbour].remove(token.hex)
+            self.update_neighbours(remove=token.hex)
+
+    def update_neighbours(self,add=None,remove=None):
+        hex = add or remove
+        for neighbour in hexes.neighbours(hex):
+            if neighbour in self.cache_neighbours:
+                cache_entry = self.cache_neighbours[neighbour]
+                if add:
+                    cache_entry.add(hex)
+                elif remove:
+                    cache_entry.remove(hex)
 
     def update_cut_hexes(self):
-
         discovery = {hex:0 for hex in self.tokens}
         low = {hex:1000 for hex in self.tokens}
         visited = {hex:False for hex in self.tokens}
@@ -92,14 +96,14 @@ class Board(object):
                     low[hex] = min(low[hex], discovery[neighbour])
 
         depth_first_search(random.choice(list(self.tokens)))
-        self.cut_hexes = set([hex for hex in cut_hexes if cut_hexes[hex] == True])
+        self.cache_cut_hexes = set([hex for hex in cut_hexes if cut_hexes[hex] == True])
+
+    def covered(self,token):
+        return token.hex is not None and token.hex not in self.tokens
 
     def trapped(self,token):
         # Would removing this token split the hive?
-        if token in self.covered_tokens.values() or token.hex in self.cut_hexes:
-            return True
-        else:
-            return False
+        return self.covered(token) or token.hex in self.cache_cut_hexes
 
     def occupied_hexes(self):
         # any hex occupied on the board
