@@ -1,37 +1,70 @@
-sudoku = ["003020600",
-          "900305001",
-          "001806400",
-          "008102900",
-          "700000008",
-          "006708200",
-          "002609500",
-          "800203009",
-          "005010300"]
 
-def colcells(x,y):
-  return [(i,y) for i in range(0,9)]
+import numpy as np
+import collections
+import itertools
+
+def create(strings):
+  return np.array([[int(c) for c in s] for s in strings])
+
+def row(sudoku,i):
+  return sudoku[i,:]
+
+def column(sudoku,j):
+  return sudoku[:,j]
+
+def block(sudoku,i,j):
+  i_start = i - i%3
+  j_start = j - j%3
+  return sudoku[i_start:i_start+3, j_start:j_start+3].flat
+
+def solve(sudoku, depth=0):
+
+  while True:
+    possibles = []
+    for i,j in itertools.product(range(9),repeat=2):
+      if sudoku[i,j] == 0:
+        possibles_for_this_cell = set(range(10)) - set(row(sudoku,i)) - set(column(sudoku,j)) - set(block(sudoku,i,j))
+        if len(possibles_for_this_cell) == 0:
+          raise ValueError
+        elif len(possibles_for_this_cell) == 1:
+          sudoku[i,j] = list(possibles_for_this_cell)[0]
+          break
+        else: 
+          possibles.append(((i,j),possibles_for_this_cell))
+    else:
+      break
+
+  possibles.sort(key=lambda item: len(item[1]))
+
+  if len(possibles) == 0:
+    return sudoku
+
+  for cell, values in possibles:
+    for value in values:
+      sudoku_with_a_possible = sudoku.copy()
+      sudoku_with_a_possible[cell] = value
+      try:
+        return solve(sudoku_with_a_possible,depth+1)
+      except ValueError:
+        pass
+
+  raise ValueError
+
+
+
+
+with open('data/p096_sudoku.txt') as f:
+  lines = f.read().splitlines()
+  sudokus = [create(lines[1+i:10+i]) for i in range(0,len(lines),10)]
   
-def rowcells(x,y):
-  return [(x,j) for j in range(0,9)]
 
-def blockcells(x,y):
-  return [(i,j) for i in range((x/3)*3,(x/3)*3+3) for j in range((y/3)*3,(y/3)*3+3)]
-  
-def allcells(x,y):
-  return colcells(x,y) + rowcells(x,y) + blockcells(x,y)
+  for sudoku in sudokus[:3]:
+    solution = solve(sudoku)
+    print()
+    print(solution)
+    for i in range(9):
+      assert set(row(solution,i)) == set(range(1,10))
+      assert set(column(solution,i)) == set(range(1,10))
+      assert set(block(solution,(i//3)*3,(i%3)*3)) == set(range(1,10))
 
-poss = [[{str(n):True for n in range(1,10)} for x in range(9)] for y in range(9)]
 
-for x in xrange(9):
-  for y in xrange(9):
-    if sudoku[x][y] != '0':
-      for (i,j) in allcells(x,y):
-        poss[i][j][sudoku[x][y]] = False
-
-print poss[0][0]
-
-#for x in xrange(9):
-#  for y in xrange(9):
-#    if sudoku[x][y] == '0':
-#      if len(banned[i][j]) == '8':
-        
