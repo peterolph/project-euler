@@ -1,70 +1,81 @@
 
-import numpy as np
-import collections
-import itertools
+import copy
+import re
 
-def create(strings):
-  return np.array([[int(c) for c in s] for s in strings])
+b = 3
+b_sq = b * b
 
-def row(sudoku,i):
-  return sudoku[i,:]
+def to_block(pos):
+    return (b*(pos[0]//b), b*(pos[1]//b))
 
-def column(sudoku,j):
-  return sudoku[:,j]
-
-def block(sudoku,i,j):
-  i_start = i - i%3
-  j_start = j - j%3
-  return sudoku[i_start:i_start+3, j_start:j_start+3].flat
-
-def solve(sudoku, depth=0):
-
-  while True:
-    possibles = []
-    for i,j in itertools.product(range(9),repeat=2):
-      if sudoku[i,j] == 0:
-        possibles_for_this_cell = set(range(10)) - set(row(sudoku,i)) - set(column(sudoku,j)) - set(block(sudoku,i,j))
-        if len(possibles_for_this_cell) == 0:
-          raise ValueError
-        elif len(possibles_for_this_cell) == 1:
-          sudoku[i,j] = list(possibles_for_this_cell)[0]
-          break
-        else: 
-          possibles.append(((i,j),possibles_for_this_cell))
+def print_item(item):
+    if item > 0:
+        return str(item)
     else:
-      break
+        return " "
 
-  possibles.sort(key=lambda item: len(item[1]))
+def print_grid(grid):
+    line = "+-" + "--"*b_sq + "+"
+    return line + "\n" + "\n".join(("| " + " ".join(print_item(grid[i][j]) for j in range(b_sq)) + " |") for i in range(b_sq)) + "\n" + line
 
-  if len(possibles) == 0:
-    return sudoku
+def keyfunc(possible_item):
+    return len(possible_item[1])
 
-  for cell, values in possibles:
-    for value in values:
-      sudoku_with_a_possible = sudoku.copy()
-      sudoku_with_a_possible[cell] = value
-      try:
-        return solve(sudoku_with_a_possible,depth+1)
-      except ValueError:
-        pass
+def solved(grid):
+    return all(all(grid[i][j] for i in range(b_sq)) for j in range(b_sq))
 
-  raise ValueError
+def first(s):
+    for i in s:
+        return i
 
+def solve(grid,depth):
 
+    copied = copy.deepcopy(grid)
 
+    while True:
+        columns = {i:set(copied[i][j] for j in range(b_sq)) for i in range(b_sq)}
+        rows = {j:set(copied[i][j] for i in range(b_sq)) for j in range(b_sq)}
+        blocks = {(i,j):set(copied[x][y] for x in range(i,i+b) for y in range(j,j+b)) for i in range(0,b_sq,b) for j in range(0,b_sq,b)}
+        possibles = {(i,j):{i for i in range(1,b_sq+1)} - columns[i] - rows[j] - blocks[to_block((i,j))] for i in range(b_sq) for j in range(b_sq) if copied[i][j]==0}
+        found_some = False
+        for ((i,j),item) in possibles.items():
+            if len(item) == 1:
+                copied[i][j] = first(item)
+                found_some = True
+                break
+        if found_some:
+            continue
+        else:
+            break
 
-with open('data/p096_sudoku.txt') as f:
-  lines = f.read().splitlines()
-  sudokus = [create(lines[1+i:10+i]) for i in range(0,len(lines),10)]
-  
+    if len(possibles) > 0:
+        ((i,j),item) = list(possibles.items())[0]
+        for value in item:
+            copied[i][j] = value
+            potential = solve(copied,depth+1)
+            if potential is not None:
+                return potential
+            else:
+                continue
+    if solved(copied):
+        return copied
+    else:
+        return None
 
-  for sudoku in sudokus[:3]:
-    solution = solve(sudoku)
-    print()
-    print(solution)
-    for i in range(9):
-      assert set(row(solution,i)) == set(range(1,10))
-      assert set(column(solution,i)) == set(range(1,10))
-      assert set(block(solution,(i//3)*3,(i%3)*3)) == set(range(1,10))
+def top_left_3_digits(grid):
+    return 100*grid[0][0] + 10*grid[0][1] + grid[0][2]
 
+if __name__ == "__main__":
 
+    grids = [[[int(char) for char in line] for line in grid.splitlines()] for grid in re.split("Grid \d\d\n", open("superfiendish.txt").read())]
+
+    total = 0
+
+    for grid in grids:
+        solution = solve(grid,0)
+        before = print_grid(grid)
+        after = print_grid(solution)
+        print("\n".join("  ".join(item) for item in zip(before.splitlines(), after.splitlines())))
+        total += top_left_3_digits(solution)
+
+    print("TOTAL : ",total)
